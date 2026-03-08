@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=75.3.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "teleGraph"
+version = "0.1.0"
+description = "Tools for scraping and building social networks from Telegram posts."
+license = {file = "LICENSE"}
+readme = {file = "README.md", content-type = "text/markdown"}
+keywords = ["Telegram", "telegram scraper", "complex networks", "network analysis"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: MIT License",
+    "Programming Language :: Python",
+    "Topic :: Software Development",
+    "Topic :: Scientific/Engineering",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Operating System :: Unix",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3.12",
+	"Programming Language :: Python :: 3.13"
+]
+requires-python = ">=3.12"
+dependencies = [
+    "telethon == 1.40.0",
+]
+
+[[project.maintainers]]
+name = "Bartosz Pankratz"
+email = "bartosz.pankratz@gmail.com"
+
+[project.urls]
+Homepage = "https://github.com/bartoszpankratz/teleGraph"
+Repository = "https://github.com/bartoszpankratz/teleGraph"
+
+[project.optional-dependencies]
+#packages used for data processing/graph creation/experiments/
+extra = [
+    "pandas >= 2.2.2",
+	"openpyxl >= 3.1.2",
+	"pyarrow >= 23.0.1",	
+]
+
+[tool.setuptools]
+packages = ["teleGraph"]
