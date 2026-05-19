@@ -24,14 +24,10 @@ def create_peer_metadata_instance():
             'no of messages': 0,    #number of published messages
             'no of views': 0,       #how many times posts were viewed
             'no of shares': 0,      #how many times posts were shared
-            'engagement': 0,   #number of reactions to the posts of the user
-            'no of reactions': 0,   #number of reactions to the posts given by user
-            'no of mentions': 0,   #number of mentions of the user
-        
-            'no of comments': 0,    #number of replies user's posts got
-            'no of forwarded': 0,   #how many times user's posts were forwarded 
-            'no of replies': 0,     #number of replies user gave
-            'no of forwards': 0,    #how many times peer forward posts
+            'reactions': Counter({'given': 0, 'received': 0}),  #number of reactions given or received         
+            'mentions': Counter({'given': 0, 'received': 0}),   #number of mentions given or received
+            'replies': Counter({'given': 0, 'received': 0}),    #number of replies given or received
+            'forwards': Counter({'given': 0, 'received': 0}),   #number of forwards given or received
            }
            
 def create_peer_metadata():
@@ -50,21 +46,23 @@ def get_peers_metadata(df, peers_metadata):
         peers_metadata[peer]['no of messages'] += 1
         peers_metadata[peer]['no of views'] += int(row['Views'] if not  pd.isnull(row['Views'])  else 0) 
         peers_metadata[peer]['no of shares'] += int(row['Shares'] if not pd.isnull(row['Shares']) else 0)
-        peers_metadata[peer]['engagement'] += sum(int(i) for i in  str(row['Reactions']).split() if i.isdecimal())
+        peers_metadata[peer]['reactions']['received'] += sum(int(i) for i in  str(row['Reactions']).split() if i.isdecimal())
         #replies
         if not pd.isnull(row['Reply to Author ID']):
             aux_peer = int(float(row['Reply to Author ID']))
-            peers_metadata[peer]['no of replies'] += 1
-            peers_metadata[aux_peer]['no of comments'] += 1
+            peers_metadata[peer]['replies']['given'] += 1
+            peers_metadata[aux_peer]['replies']['received'] += 1
             peers_metadata[aux_peer]['type'] = row['Reply to Author Type']
             peers_metadata[aux_peer]['username'] = row['Reply to Username'] if not pd.isnull(row['Reply to Username']) else 'None'
+            peers_metadata[aux_peer]['active in'].add(row['Channel'])
         #forwards
         if not pd.isnull(row['Forwarded from Author ID']):
             aux_peer = int(float(row['Forwarded from Author ID']))
-            peers_metadata[peer]['no of forwards'] += 1
-            peers_metadata[aux_peer]['no of forwarded'] += 1
+            peers_metadata[peer]['forwards']['given'] += 1
+            peers_metadata[aux_peer]['forwards']['received'] += 1
             peers_metadata[aux_peer]['type'] = row['Forwarded from Author Type']
             peers_metadata[aux_peer]['username'] = row['Forwarded from Author Username'] if not pd.isnull(row['Forwarded from Author Username']) else 'None'
+            peers_metadata[aux_peer]['active in'].add(row['Channel'])
         #mentions:
         if not pd.isnull(row['Mentions IDs']):
             mentions_ids = str(row['Mentions IDs']).rstrip().split(' ')
@@ -74,9 +72,11 @@ def get_peers_metadata(df, peers_metadata):
                 if aux_peer == '<NA>':
                     continue
                 aux_peer = int(float(aux_peer))
-                peers_metadata[aux_peer]['no of reactions'] += 1
-                peers_metadata[aux_peer]['type'] = mentions_types[i] if not mentions_types[i] != '<NA>' else 'Unknown'
-                peers_metadata[aux_peer]['username'] = mentions_names[i] if not mentions_names[i] != '<NA>' else 'None'
+                peers_metadata[peer]['mentions']['given'] += 1
+                peers_metadata[aux_peer]['mentions']['received'] += 1
+                peers_metadata[aux_peer]['type'] = mentions_types[i] if mentions_types[i] not in ['nan', '<NA>'] else 'Unknown'
+                peers_metadata[aux_peer]['username'] = mentions_names[i] if mentions_names[i] not in ['nan', '<NA>'] else 'None'
+                peers_metadata[aux_peer]['active in'].add(row['Channel'])
         #reactions:
         if not pd.isnull(row['Reactions IDs']):
             reactions_ids = str(row['Reactions IDs']).rstrip().split(' ')
@@ -86,11 +86,11 @@ def get_peers_metadata(df, peers_metadata):
                 if aux_peer == '<NA>':
                     continue
                 aux_peer = int(float(aux_peer))
-                peers_metadata[aux_peer]['no of mentions'] += 1
-                peers_metadata[aux_peer]['type'] = reactions_types[i] if not reactions_types[i] != '<NA>' else 'Unknown'
-                peers_metadata[aux_peer]['username'] = reactions_names[i] if not reactions_names[i] != '<NA>' else 'None'
-                
-
+                peers_metadata[aux_peer]['reactions']['given'] += 1
+                peers_metadata[aux_peer]['type'] = reactions_types[i] if reactions_types[i] not in ['nan', '<NA>'] else 'Unknown'
+                peers_metadata[aux_peer]['username'] = reactions_names[i] if reactions_names[i] not in ['nan', '<NA>'] else 'None'
+                peers_metadata[aux_peer]['active in'].add(row['Channel'])
+ 
 def filter_edges_from_df(df, source_col, target_col, auxiliary_cols, interacion_type, include_type = True):
     ''' Filter all the edges of a given type from DataFrame object.  
         :param pandas.DataFrame df: DataFrame with Telegram Post 
@@ -197,7 +197,7 @@ def edgelist_from_df(df, variant = 'all'):
     source_col, target_col = 'Author ID', 'Mentions IDs'
     auxiliary_cols = {"source post ID": 'Message ID', "target post ID": 'Message ID'}
     edge_df = pd.concat([edge_df, get_edges_from_df(df, source_col, target_col, auxiliary_cols, "mention", variant = variant)], axis = 0) 
-    return edge_df
+    return edge_df.reset_index(drop=True)
 
 def get_edgelist(source, nodes_metadata = None, respath = None, filenames = None, variant = 'all'):
     ''' Get all edges from a given DataFrame.  
@@ -265,7 +265,7 @@ def get_edgelist(source, nodes_metadata = None, respath = None, filenames = None
                 continue
             edge_df = get_edgelist(source + fname, nodes_metadata = nodes_metadata, respath = respath, variant = variant)
             if isinstance(edge_df, pd.DataFrame):
-                edgelist_df = pd.concat([edgelist_df, edge_df], axis = 0)  
+                edgelist_df = pd.concat([edgelist_df, edge_df], axis = 0).reset_index(drop=True)
         return edgelist_df if not respath else None
     else:
         raise ValueError(f"Provided input is not a Dataframe, valid file or directory!") 

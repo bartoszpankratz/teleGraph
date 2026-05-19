@@ -178,3 +178,21 @@ def update_missing_peers(df, peers_dict):
                                          if pd.isnull(x) == False else x)
     df['Reactions Peer Username'] = [' '.join(l[0] if l else '<NA>' for l in usernames[i]).rstrip() if pd.isnull(name) == False else name
                                      for (i, name) in enumerate(df['Reactions Peer Username'])]
+                                     
+def save_data(df, filename, file_format = 'csv'):
+    ''' Save scraped or modified dataframe.  
+        :param pandas.DataFrame df: dataframe to be saved.
+        :param str filename: file name and path.
+        :param str file_format {'parquet', 'excel', 'csv'}: File format (default 'csv').
+    '''
+    if file_format == 'parquet':
+        filename = filename + '.parquet'
+        df.to_parquet(filename, index=False)
+    elif file_format == 'excel':
+        filename = filename + '.xlsx'
+        df.to_excel(filename, index=False, engine='openpyxl')
+    elif file_format == 'csv':
+        filename + '.csv'
+        df.to_csv(filename, index = False, mode='w', sep = ';', encoding = 'utf=8') 
+    else:
+        raise ValueError(f"Wrong file format! Package supports only parquet, xlsx or csv files!") 
